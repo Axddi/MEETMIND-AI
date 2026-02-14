@@ -20,36 +20,58 @@ def lambda_handler(event, context):
     transcript = obj["Body"].read().decode("utf-8")
 
     prompt = f"""
-    Summarize this meeting.
-    Extract:
-    - Key decisions
-    - Action items
-    - Overall sentiment
+    You are an AI meeting assistant.
+
+    Analyze the meeting transcript below and return ONLY valid JSON in this format:
+
+    {{
+    "summary": "Concise summary of the meeting",
+    "actionItems": ["Action item 1", "Action item 2"],
+    "sentiment": "Positive | Neutral | Negative"
+    }}
 
     Transcript:
     {transcript}
     """
 
+
     response = bedrock.invoke_model(
         modelId="anthropic.claude-v2",
         body=json.dumps({
             "prompt": prompt,
-            "max_tokens_to_sample": 300,
-            "temperature": 0.4
+            "max_tokens_to_sample": 400,
+            "temperature": 0.3
         }),
         contentType="application/json",
         accept="application/json"
     )
 
-    ai_output = json.loads(response["body"].read())
+    result = json.loads(response["body"].read())
 
-    table = ddb.Table(TABLE_NAME)
+    ai_text = result.get("completion", "").strip()
+
+    try:
+        structured_output = json.loads(ai_text)
+    except json.JSONDecodeError:
+        structured_output = {
+            "summary": "Parsing failed",
+            "actionItems": [],
+            "sentiment": "Unknown"
+        }
+
+
+    from datetime import datetime
+
     table.put_item(
         Item={
             "meetingId": meeting_id,
-            "summary": ai_output,
+            "summary": structured_output.get("summary"),
+            "actionItems": structured_output.get("actionItems"),
+            "sentiment": structured_output.get("sentiment"),
+            "createdAt": datetime.utcnow().isoformat()
         }
     )
+
 
     return {"statusCode": 200}
 
