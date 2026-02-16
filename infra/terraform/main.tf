@@ -16,5 +16,6 @@ module "lambda" {
 module "apigw" {
   source            = "./apigw"
   upload_lambda_arn = module.lambda.upload_lambda_arn
+  fetch_lambda_arn  = module.lambda.fetch_lambda_arn
 }
 
