@@ -3,9 +3,11 @@ import boto3
 import os
 from datetime import datetime
 
-s3 = boto3.client("s3")
-ddb = boto3.resource("dynamodb")
-bedrock = boto3.client("bedrock-runtime")
+region = os.environ.get("AWS_REGION")
+
+s3 = boto3.client("s3", region_name=region)
+ddb = boto3.resource("dynamodb", region_name=region)
+bedrock = boto3.client("bedrock-runtime", region_name=region)
 
 TABLE_NAME = os.environ["TABLE_NAME"]
 
@@ -56,25 +58,31 @@ def lambda_handler(event, context):
             """
 
         response = bedrock.invoke_model(
-            modelId="anthropic.claude-v2",
-            body=json.dumps({
-                "prompt": prompt,
-                "max_tokens_to_sample": 400,
-                "temperature": 0.3
-            }),
+            modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
-            accept="application/json"
+            accept="application/json",
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 500,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            })
         )
 
-        result = json.loads(response["body"].read())
-        ai_text = result.get("completion", "").strip()
+        response_body = json.loads(response["body"].read())
+
+        ai_text = response_body["content"][0]["text"]
 
         try:
             structured_output = json.loads(ai_text)
         except json.JSONDecodeError:
             log("ERROR", "JSON parsing failed", meetingId=meeting_id)
             structured_output = {
-                "summary": None,
+                "summary": ai_text,
                 "actionItems": [],
                 "sentiment": "Unknown"
             }
