@@ -14,8 +14,11 @@ module "lambda" {
   dynamodb_table_name = aws_dynamodb_table.meetings.name
 }
 module "apigw" {
-  source            = "./apigw"
-  upload_lambda_arn = module.lambda.upload_lambda_arn
-  fetch_lambda_arn  = module.lambda.fetch_lambda_arn
-}
+  source = "./apigw"
 
+  upload_lambda_arn        = module.lambda.upload_lambda_arn
+  upload_lambda_invoke_arn = module.lambda.upload_lambda_invoke_arn
+
+  fetch_lambda_arn         = module.lambda.fetch_lambda_arn
+  fetch_lambda_invoke_arn  = module.lambda.fetch_lambda_invoke_arn
+}
