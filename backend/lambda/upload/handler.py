@@ -3,7 +3,20 @@ import boto3
 import os
 import uuid
 
-s3 = boto3.client("s3")
+from botocore.config import Config
+
+region = os.environ.get("AWS_REGION")
+
+s3 = boto3.client(
+    "s3",
+    region_name=region,
+    config=Config(
+        signature_version="s3v4",
+        s3={"addressing_style": "virtual"}
+    )
+)
+
+
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
 
 def lambda_handler(event, context):
@@ -14,8 +27,7 @@ def lambda_handler(event, context):
         ClientMethod="put_object",
         Params={
             "Bucket": BUCKET_NAME,
-            "Key": file_key,
-            "ContentType": "text/plain"
+            "Key": file_key
         },
         ExpiresIn=300
     )
