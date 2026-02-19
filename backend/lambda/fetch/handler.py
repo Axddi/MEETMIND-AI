@@ -7,7 +7,6 @@ ddb = boto3.resource("dynamodb")
 TABLE_NAME = os.environ["TABLE_NAME"]
 
 
-# Convert DynamoDB Decimal to normal numbers
 def decimal_default(obj):
     if isinstance(obj, Decimal):
         return float(obj)
