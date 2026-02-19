@@ -7,6 +7,10 @@ resource "aws_lambda_function" "processor" {
   filename         = "${path.root}/../../backend/lambda/processor/processor.zip"
   source_code_hash = filebase64sha256("${path.root}/../../backend/lambda/processor/processor.zip")
 
+  
+  timeout      = 15
+  memory_size  = 512
+
   environment {
     variables = {
       TABLE_NAME = var.dynamodb_table_name

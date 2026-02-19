@@ -1,55 +1,50 @@
 import json
 import boto3
 import os
+import re
 from datetime import datetime
 
-region = os.environ.get("AWS_REGION")
+s3 = boto3.client("s3")
+dynamodb = boto3.resource("dynamodb")
+bedrock = boto3.client("bedrock-runtime", region_name="ap-south-1")
+TABLE_NAME = os.environ.get("TABLE_NAME", "meetmind-meetings")
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "meetmind-ai-transcripts")
 
-s3 = boto3.client("s3", region_name=region)
-ddb = boto3.resource("dynamodb", region_name=region)
-bedrock = boto3.client("bedrock-runtime", region_name=region)
+table = dynamodb.Table(TABLE_NAME)
 
-TABLE_NAME = os.environ["TABLE_NAME"]
-
-def log(level, message, **kwargs):
-    print(json.dumps({
-        "level": level,
-        "message": message,
-        "timestamp": datetime.utcnow().isoformat(),
-        **kwargs
-    }))
 
 def lambda_handler(event, context):
     try:
         record = event["Records"][0]
-        bucket = record["s3"]["bucket"]["name"]
         key = record["s3"]["object"]["key"]
 
         meeting_id = key.split("/")[-1].replace(".txt", "")
 
-        log("INFO", "Processing started", meetingId=meeting_id)
-
-        table = ddb.Table(TABLE_NAME)
-
-        table.put_item(
-            Item={
-                "meetingId": meeting_id,
-                "status": "PROCESSING",
-                "createdAt": datetime.utcnow().isoformat()
-            }
-        )
-
-        obj = s3.get_object(Bucket=bucket, Key=key)
+        print(json.dumps({
+            "level": "INFO",
+            "message": "Processing started",
+            "meetingId": meeting_id
+        }))
+        obj = s3.get_object(Bucket=BUCKET_NAME, Key=key)
         transcript = obj["Body"].read().decode("utf-8")
-
         prompt = f"""
-            You are an AI meeting assistant.
+            You are a meeting assistant.
 
-            Return ONLY valid JSON in this format:
+            Analyze the transcript below and return ONLY valid JSON.
+
+            Rules:
+            - Return STRICT JSON.
+            - No explanation.
+            - No markdown.
+            - No backticks.
+            - No HTML.
+            - No extra text.
+
+            Required format:
 
             {{
-            "summary": "Concise summary",
-            "actionItems": ["Action 1", "Action 2"],
+            "summary": "short meeting summary",
+            "actionItems": ["item 1", "item 2"],
             "sentiment": "Positive | Neutral | Negative"
             }}
 
@@ -58,62 +53,87 @@ def lambda_handler(event, context):
             """
 
         response = bedrock.invoke_model(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
+            modelId="meta.llama3-8b-instruct-v1:0",
             contentType="application/json",
             accept="application/json",
             body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 500,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
+                "prompt": prompt,
+                "max_gen_len": 500,
+                "temperature": 0.2,
+                "top_p": 0.9
             })
         )
 
         response_body = json.loads(response["body"].read())
+        ai_text = response_body.get("generation", "")
 
-        ai_text = response_body["content"][0]["text"]
+        print(json.dumps({
+            "level": "INFO",
+            "message": "Raw model output",
+            "output": ai_text[:300]
+        }))
 
         try:
-            structured_output = json.loads(ai_text)
-        except json.JSONDecodeError:
-            log("ERROR", "JSON parsing failed", meetingId=meeting_id)
+            json_match = re.search(r'\{.*\}', ai_text, re.DOTALL)
+            if json_match:
+                structured_output = json.loads(json_match.group())
+            else:
+                raise ValueError("No JSON found in model output")
+        except Exception:
             structured_output = {
-                "summary": ai_text,
+                "summary": ai_text[:300],
                 "actionItems": [],
                 "sentiment": "Unknown"
             }
 
-        table.put_item(
-            Item={
-                "meetingId": meeting_id,
-                "status": "COMPLETED",
-                "summary": structured_output.get("summary"),
-                "actionItems": structured_output.get("actionItems"),
-                "sentiment": structured_output.get("sentiment"),
-                "createdAt": datetime.utcnow().isoformat(),
-                "processedAt": datetime.utcnow().isoformat()
+        summary = structured_output.get("summary", "")
+        action_items = structured_output.get("actionItems", [])
+        sentiment = structured_output.get("sentiment", "Unknown")
+        table.update_item(
+            Key={"meetingId": meeting_id},
+            UpdateExpression="""
+                SET #s = :status,
+                    summary = :summary,
+                    actionItems = :actions,
+                    sentiment = :sentiment,
+                    processedAt = :processedAt
+            """,
+            ExpressionAttributeNames={
+                "#s": "status"
+            },
+            ExpressionAttributeValues={
+                ":status": "COMPLETED",
+                ":summary": summary,
+                ":actions": action_items,
+                ":sentiment": sentiment,
+                ":processedAt": datetime.utcnow().isoformat()
             }
         )
 
-        log("INFO", "Processing completed", meetingId=meeting_id)
-
-        return {"statusCode": 200}
+        print(json.dumps({
+            "level": "INFO",
+            "message": "Processing completed",
+            "meetingId": meeting_id
+        }))
 
     except Exception as e:
-        log("ERROR", "Processing failed", error=str(e))
+        print(json.dumps({
+            "level": "ERROR",
+            "message": "Processing failed",
+            "error": str(e)
+        }))
 
-        if 'meeting_id' in locals():
-            table.put_item(
-                Item={
-                    "meetingId": meeting_id,
-                    "status": "FAILED",
-                    "errorMessage": str(e),
-                    "createdAt": datetime.utcnow().isoformat()
+        try:
+            table.update_item(
+                Key={"meetingId": meeting_id},
+                UpdateExpression="SET #s = :status, errorMessage = :err",
+                ExpressionAttributeNames={"#s": "status"},
+                ExpressionAttributeValues={
+                    ":status": "FAILED",
+                    ":err": str(e)
                 }
             )
+        except:
+            pass
 
-        return {"statusCode": 500}
+        raise e
