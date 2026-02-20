@@ -25,6 +25,7 @@ Upload a .txt meeting transcript and MeetMind AI will:
 - All powered by Amazon Bedrock (Llama 3) and serverless AWS infrastructure.
 
 # Architecture Overview
+![MeetMind-AI Architecture](Architecture.png)
 
 # Tech Stack
 - Frontend
