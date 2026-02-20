@@ -28,16 +28,14 @@ Upload a .txt meeting transcript and MeetMind AI will:
 
 # Tech Stack
 - Frontend
-
- - Next.js (App Router)
- - TypeScript
- - TailwindCSS
- - Framer Motion
- - shadcn/ui
- - Deployed on Vercel
+    - Next.js (App Router)
+    - TypeScript
+    - TailwindCSS
+    - Framer Motion
+    - shadcn/ui
+    - Deployed on Vercel
 
 - Backend (AWS)
-
  - API Gateway (HTTP API)
  - AWS Lambda
  - Amazon S3 (presigned uploads)
@@ -74,17 +72,17 @@ Upload a .txt meeting transcript and MeetMind AI will:
 
 # Local Development
 
- - Frontend
+ Frontend
  ``` bash
 cd frontend
 npm install
 npm run dev
 ```
-- Create .env.local:
+Create .env.local:
 ```bash
 NEXT_PUBLIC_API_BASE=https://your-api-id.execute-api.ap-south-1.amazonaws.com
 ```
-- Backend (Terraform)
+Backend (Terraform)
 ```bash
 cd infra/terraform
 terraform init
@@ -132,4 +130,5 @@ MeetMind AI demonstrates:
 
 # Author
 Built by Aaditya Saxena
+
 AI • Cloud • Full-Stack Engineering
