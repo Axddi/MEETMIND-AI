@@ -36,39 +36,37 @@ Upload a .txt meeting transcript and MeetMind AI will:
     - Deployed on Vercel
 
 - Backend (AWS)
- - API Gateway (HTTP API)
- - AWS Lambda
- - Amazon S3 (presigned uploads)
- - Amazon DynamoDB
- - Amazon Bedrock (Meta Llama 3 8B Instruct)
- - IAM (fine-grained roles)
- - CloudWatch logging
- - Terraform (Infrastructure as Code)
+    - API Gateway (HTTP API)
+    - AWS Lambda
+    - Amazon S3 (presigned uploads)
+    - Amazon DynamoDB
+    - Amazon Bedrock (Meta Llama 3 8B Instruct)
+    - IAM (fine-grained roles)
+    - CloudWatch logging
+    - Terraform (Infrastructure as Code)
 
 # How It Works
 - Upload Phase
- - Frontend calls POST /upload
- - Lambda generates:
-  - meetingId
-  - Presigned S3 upload URL
-
- - Frontend uploads transcript directly to S3
+    - Frontend calls POST /upload
+    - Lambda generates:
+        - meetingId
+        - Presigned S3 upload URL
+    - Frontend uploads transcript directly to S3
 
 - Processing Phase
- - S3 triggers Processor Lambda
- - Lambda:
-  - Reads transcript
-  - Calls Amazon Bedrock (Llama 3)
-  - Extracts structured JSON
-  - Stores results in DynamoDB
+    - S3 triggers Processor Lambda
+    - Lambda:
+        - Reads transcript
+        - Calls Amazon Bedrock (Llama 3)
+        - Extracts structured JSON
+        - Stores results in DynamoDB
 
 - Retrieval Phase
-
- - Frontend polls /meeting/{meetingId}
- - When status = COMPLETED, UI renders:
-  - Summary
-  - Action items
-  - Sentiment
+    - Frontend polls /meeting/{meetingId}
+    - When status = COMPLETED, UI renders:
+        - Summary
+        - Action items
+        - Sentiment
 
 # Local Development
 
