@@ -34,7 +34,9 @@ resource "aws_iam_role_policy" "lambda_permissions" {
       {
         Effect = "Allow"
         Action = [
-          "dynamodb:PutItem"
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:GetItem"
         ]
         Resource = "*"
       },

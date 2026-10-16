@@ -88,6 +88,30 @@ terraform init
 terraform apply
 ```
 
+# Tests and Benchmark
+
+There is no automated unit-test suite in the repository. The standalone processor
+benchmark sends 20 short, medium, and long transcripts, including disfluent speech,
+through the summarization handler and checks the exact `summary`, `actionItems`,
+and `sentiment` JSON schema.
+
+Run with mocked AWS services (does not require AWS credentials):
+```bash
+python benchmarks/benchmark_processor.py
+```
+
+Run end-to-end against a deployed stack with Bedrock access:
+```bash
+python benchmarks/benchmark_processor.py --live \
+  --api-url https://<api-id>.execute-api.<region>.amazonaws.com
+```
+
+On 2026-10-16, the mocked run produced 19/20 schema-valid responses (95%), with
+one fallback and no handler failures. The live AWS run produced 18/20 schema-valid
+responses (90%), with two fallbacks, no retries, and no handler failures. These
+are results from one 20-transcript run, not a guarantee of model quality; fallback
+sentiment is `Unknown`, which is outside the declared sentiment schema.
+
 # Security
 - Presigned S3 uploads (no direct credentials exposed)
 - IAM least-privilege roles

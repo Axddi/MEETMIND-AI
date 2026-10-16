@@ -13,7 +13,8 @@ resource "aws_lambda_function" "processor" {
 
   environment {
     variables = {
-      TABLE_NAME = var.dynamodb_table_name
+      TABLE_NAME  = var.dynamodb_table_name
+      BUCKET_NAME = var.bucket_name
     }
   }
 }
